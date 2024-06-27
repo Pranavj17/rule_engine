@@ -1,18 +1,17 @@
 defmodule RuleEngine do
-  @moduledoc """
-  Documentation for `RuleEngine`.
-  """
+  def parser do
+    quote do
+      use Core.RuleEngine.RuleParser
+    end
+  end
 
-  @doc """
-  Hello world.
+  def builder do
+    quote do
+      use Core.RuleEngine.RuleBuilder
+    end
+  end
 
-  ## Examples
-
-      iex> RuleEngine.hello()
-      :world
-
-  """
-  def hello do
-    :world
+  defmacro __using__(which) when is_atom(which) do
+    apply(__MODULE__, which, [])
   end
 end
