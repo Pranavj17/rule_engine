@@ -1,13 +1,13 @@
 defmodule RuleEngine do
   def parser do
     quote do
-      use Core.RuleEngine.RuleParser
+      use RuleEngine.RuleParser
     end
   end
 
   def builder do
     quote do
-      use Core.RuleEngine.RuleBuilder
+      use RuleEngine.RuleBuilder
     end
   end
 
