@@ -1,7 +1,7 @@
-defmodule RuleEngine.RuleBuilder do
+defmodule RuleEngine.Builder do
   defmacro __using__(_opts) do
     quote do
-      import RuleEngine.RuleBuilder
+      import RuleEngine.Builder
 
       import Kernel,
         except: [

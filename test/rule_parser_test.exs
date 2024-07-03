@@ -1,12 +1,12 @@
 defmodule RuleEngine.RuleParserTest do
   use ExUnit.Case, async: true
-  use RuleEngine.RuleBuilder
+  use RuleEngine.Builder
 
   defmodule TestRuleParser do
-    use RuleEngine.RuleParser,
-      adapter: RuleEngine.Adapter.Elasticsearch
+    use RuleEngine.Parser,
+      adapter: RuleEngine.Adapters.Elasticsearch
 
-    use RuleEngine.RuleBuilder
+    use RuleEngine.Builder
 
     def whitelisted_attributes do
       %{

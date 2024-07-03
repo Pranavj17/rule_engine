@@ -1,4 +1,4 @@
-defmodule RuleEngine.RuleParser do
+defmodule RuleEngine.Parser do
   defmacro __using__(opts) do
     adapter = Keyword.get(opts, :adapter)
 
