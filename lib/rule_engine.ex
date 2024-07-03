@@ -1,7 +1,8 @@
 defmodule RuleEngine do
   def parser do
     quote do
-      use RuleEngine.RuleParser
+      use RuleEngine.RuleParser,
+        adapter: RuleEngine.Adapter.Elasticsearch
     end
   end
 

@@ -3,7 +3,9 @@ defmodule RuleEngine.RuleParserTest do
   use RuleEngine.RuleBuilder
 
   defmodule TestRuleParser do
-    use RuleEngine.RuleParser
+    use RuleEngine.RuleParser,
+      adapter: RuleEngine.Adapters.Elasticsearch
+
     use RuleEngine.RuleBuilder
 
     def whitelisted_attributes do
