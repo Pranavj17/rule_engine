@@ -1,14 +1,14 @@
 defmodule RuleEngine do
   def parser do
     quote do
-      use RuleEngine.RuleParser,
-        adapter: RuleEngine.Adapter.Elasticsearch
+      use RuleEngine.Parser,
+        adapter: RuleEngine.Adapters.Elasticsearch
     end
   end
 
   def builder do
     quote do
-      use RuleEngine.RuleBuilder
+      use RuleEngine.Builder
     end
   end
 
