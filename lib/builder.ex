@@ -11,7 +11,9 @@ defmodule RuleEngine.Builder do
           !=: 2,
           not: 1,
           and: 2,
-          ==: 2
+          ==: 2,
+          >=: 2,
+          <=: 2
         ]
 
       def exists?(name) do
@@ -36,6 +38,14 @@ defmodule RuleEngine.Builder do
 
       def left in right do
         unit_rule(left, "in", right)
+      end
+
+      def left >= right do
+        unit_rule(left, "gt_eq", right)
+      end
+
+      def left <= right do
+        unit_rule(left, "gt_eq", right, true)
       end
 
       def contains(name, value) do
@@ -95,7 +105,8 @@ defmodule RuleEngine.Builder do
       def rule(:and, rule), do: %{"and" => [rule]}
       def rule(:or, rule) when is_list(rule), do: %{"or" => rule}
       def rule(:or, rule), do: %{"or" => [rule]}
-      def rule(:not, rule), do: %{"not" => rule}
+      def rule(:not, rule) when is_list(rule), do: %{"not" => rule}
+      def rule(:not, rule), do: %{"not" => [rule]}
     end
   end
 end
