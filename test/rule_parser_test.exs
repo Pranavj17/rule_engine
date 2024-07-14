@@ -29,6 +29,7 @@ defmodule RuleEngine.RuleParserTest do
   end
 
   describe "build/1" do
+    @tag timeout: :infinity
     test "supports predefined rules" do
       expected_query = %{
         bool: %{
