@@ -1,4 +1,5 @@
 defmodule RuleEngine.RuleParserTest do
+  alias ElixirLS.LanguageServer.Providers.CodeLens.Test
   use ExUnit.Case, async: true
   use RuleEngine.Builder
 
@@ -29,7 +30,331 @@ defmodule RuleEngine.RuleParserTest do
   end
 
   describe "build/1" do
+    test "basic rules" do
+      rule = %{
+        and: [
+          %{
+            name: "startup",
+            operator: "exists"
+          },
+          %{
+            name: "department",
+            operator: "eq",
+            values: ["Technology"]
+          },
+          %{
+            name: "department",
+            operator: "eq",
+            values: ["Technology"]
+          }
+        ],
+        or: [
+          %{
+            name: "department",
+            operator: "eq",
+            values: ["deparment"]
+          }
+        ],
+        not: [
+          %{
+            name: "department",
+            operator: "eq",
+            values: ["student"]
+          }
+        ],
+        filter: [
+          exists?("startup"),
+          1 in [1, 2],
+          %{
+            name: "colleges.students.name",
+            operator: "eq",
+            values: ["test", "test1"]
+          }
+        ]
+      }
+
+      expected_query = %{
+        bool: %{
+          filter: [
+            %{exists: %{field: "startup"}},
+            %{terms: %{"1": [1, 2]}},
+            %{terms: %{"colleges.students.name": ["test", "test1"]}}
+          ],
+          should: [%{terms: %{department: ["deparment"]}}],
+          must: [
+            %{exists: %{field: "startup"}},
+            %{terms: %{department: ["Technology"]}},
+            %{terms: %{department: ["Technology"]}}
+          ],
+          must_not: [%{terms: %{department: ["student"]}}]
+        }
+      }
+
+      assert ^expected_query = TestRuleParser.build(rule)
+    end
+
+    test "test build with timestamp range" do
+      rule = %{
+        and: [
+          %{
+            name: "timestamp",
+            operator: "gt",
+            values: [20]
+          },
+          %{
+            name: "time",
+            operator: ["gt", "gte", "lt", "lte"],
+            values: [20, 30]
+          }
+        ]
+      }
+
+      expected_query = %{
+        bool: %{
+          must: [
+            %{range: %{"timestamp" => %{gt: 20}}},
+            %{range: %{"time" => %{"gt" => 20, "gte" => 30}}}
+          ]
+        }
+      }
+
+      assert ^expected_query = TestRuleParser.build(rule)
+    end
+
+    test "complex nested rules" do
+      rule = %{
+        and: [
+          %{
+            name: "test",
+            operator: "eq",
+            values: "elastic"
+          },
+          %{
+            and: %{
+              name: "test",
+              operator: "eq",
+              values: "elastic_search"
+            },
+            or: %{
+              name: "test",
+              operator: "eq",
+              values: "query"
+            }
+          },
+          %{
+            name: "time",
+            operator: ["gt", "gte", "lt", "lte"],
+            values: [20, 30]
+          }
+        ],
+        or: 1 in [1, 2]
+      }
+
+      assert %{
+               bool: %{
+                 should: [%{terms: %{"1": [1, 2]}}],
+                 must: [
+                   %{term: %{test: "elastic"}},
+                   %{range: %{"time" => %{"gt" => 20, "gte" => 30}}},
+                   %{
+                     bool: %{
+                       should: [%{term: %{test: "query"}}],
+                       must: [%{term: %{test: "elastic_search"}}]
+                     }
+                   }
+                 ]
+               }
+             } = TestRuleParser.build(rule)
+    end
+
+    test "complex multi nested rules" do
+      rule = %{
+        and: [
+          %{
+            and: %{
+              name: "status",
+              operator: "eq",
+              values: "active"
+            },
+            or: [
+              %{
+                and: %{
+                  name: "category",
+                  operator: "eq",
+                  values: "electronics"
+                }
+              },
+              %{
+                and: %{
+                  name: "category",
+                  operator: "eq",
+                  values: "furniture"
+                }
+              }
+            ]
+          },
+          %{
+            name: "date",
+            operator: ["gte", "lte"],
+            values: ["2024-01-01", "2024-12-31"]
+          }
+        ]
+      }
+
+      expected_query = %{
+        bool: %{
+          must: [
+            %{
+              range: %{
+                "date" => %{
+                  "gte" => "2024-01-01",
+                  "lte" => "2024-12-31"
+                }
+              }
+            },
+            %{
+              bool: %{
+                should: [
+                  %{
+                    bool: %{
+                      must: [%{term: %{category: "electronics"}}]
+                    }
+                  },
+                  %{
+                    bool: %{must: [%{term: %{category: "furniture"}}]}
+                  }
+                ],
+                must: [%{term: %{status: "active"}}]
+              }
+            }
+          ]
+        }
+      }
+
+      assert ^expected_query = TestRuleParser.build(rule)
+    end
+
     @tag timeout: :infinity
+    test "complex query with nested rules" do
+      rule = %{
+        and: [
+          %{
+            name: "status",
+            operator: "eq",
+            values: "active"
+          },
+          %{
+            name: "date",
+            operator: ["gte", "lte"],
+            values: ["2024-01-01", "2024-12-31"]
+          },
+          %{
+            and: %{
+              name: "reviews.rating",
+              operator: "gte",
+              values: ["4"]
+            }
+          }
+        ],
+        or: [
+          %{
+            name: "category",
+            operator: "eq",
+            values: "electronics"
+          },
+          %{
+            name: "category",
+            operator: "eq",
+            values: "furniture"
+          }
+        ],
+        filter: [
+          %{
+            name: "price",
+            operator: "gte",
+            values: ["50"]
+          },
+          exists?("brand")
+        ],
+        not: [
+          %{
+            name: "discounted",
+            operator: "eq",
+            values: true
+          }
+        ]
+      }
+
+      expected_query = %{
+        bool: %{
+          filter: [
+            %{range: %{"price" => %{gte: "50"}}},
+            %{exists: %{field: "brand"}}
+          ],
+          should: [
+            %{term: %{category: "electronics"}},
+            %{term: %{category: "furniture"}}
+          ],
+          must: [
+            %{term: %{status: "active"}},
+            %{
+              range: %{
+                "date" => %{
+                  "gte" => "2024-01-01",
+                  "lte" => "2024-12-31"
+                }
+              }
+            },
+            %{
+              bool: %{
+                must: [%{range: %{"reviews.rating" => %{gte: "4"}}}]
+              }
+            }
+          ],
+          must_not: [%{term: %{discounted: true}}]
+        }
+      }
+
+      assert ^expected_query = TestRuleParser.build(rule)
+    end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     test "supports predefined rules" do
       expected_query = %{
         bool: %{
@@ -86,54 +411,12 @@ defmodule RuleEngine.RuleParserTest do
       expected_query = %{
         bool: %{
           must: [
-            %{
-              bool: %{
-                must: %{
-                  bool: %{
-                    must: [
-                      %{
-                        exists: %{field: "startup"}
-                      }
-                    ]
-                  }
-                }
-              }
-            },
-            %{
-              bool: %{
-                must: %{
-                  bool: %{
-                    must: [
-                      %{
-                        exists: %{field: "funding"}
-                      }
-                    ]
-                  }
-                }
-              }
-            },
-            %{
-              bool: %{
-                must: %{
-                  bool: %{must: [%{exists: %{field: "___improbable_field_name___"}}]}
-                }
-              }
-            },
-            %{
-              bool: %{
-                must: %{bool: %{must: [%{terms: %{"company_name" => ["telex"]}}]}}
-              }
-            },
-            %{
-              bool: %{
-                must: %{bool: %{must: [%{range: %{"revenue" => %{gt: 1_000_000_000}}}]}}
-              }
-            },
-            %{
-              bool: %{
-                must: %{bool: %{must: [%{range: %{"revenue" => %{gt: 9_999_999_999}}}]}}
-              }
-            }
+            %{exists: %{field: "startup"}},
+            %{exists: %{field: "funding"}},
+            %{terms: %{department: ["Technology"]}},
+            %{terms: %{company_name: ["Telex"]}},
+            %{range: %{"revenue" => %{gt: 1_000_000_000}}},
+            %{range: %{"revenue" => %{gt: 9_999_999_999}}}
           ]
         }
       }
@@ -141,289 +424,6 @@ defmodule RuleEngine.RuleParserTest do
       assert ^expected_query = TestRuleParser.build(rule)
     end
 
-    test "returns es query for a nested rule with only attribute field_types" do
-      rule = %{
-        "and" => [
-          %{
-            "type" => "attribute",
-            "name" => "startup",
-            "operator" => "exists",
-            "inverse" => false
-          },
-          %{
-            "type" => "attribute",
-            "name" => "funding",
-            "operator" => "exists",
-            "inverse" => true
-          },
-          %{
-            "type" => "attribute",
-            "name" => "department",
-            "operator" => "eq",
-            "values" => ["Technology"],
-            "inverse" => false
-          },
-          %{
-            "type" => "attribute",
-            "name" => "company_name",
-            "operator" => "eq",
-            "values" => ["Telex"],
-            "inverse" => true
-          },
-          %{
-            "or" => [
-              %{
-                "type" => "attribute",
-                "name" => "startup",
-                "operator" => "exists",
-                "inverse" => false
-              },
-              %{
-                "type" => "attribute",
-                "name" => "funding",
-                "operator" => "exists",
-                "inverse" => true
-              },
-              %{
-                "type" => "attribute",
-                "name" => "department",
-                "operator" => "eq",
-                "values" => ["Technology"],
-                "inverse" => false
-              },
-              %{
-                "type" => "attribute",
-                "name" => "company_name",
-                "operator" => "eq",
-                "values" => ["Telex"],
-                "inverse" => true
-              },
-              %{
-                "and" => [
-                  %{
-                    "type" => "attribute",
-                    "name" => "startup",
-                    "operator" => "exists",
-                    "inverse" => false
-                  },
-                  %{
-                    "type" => "attribute",
-                    "name" => "funding",
-                    "operator" => "exists",
-                    "inverse" => true
-                  },
-                  %{
-                    "type" => "attribute",
-                    "name" => "department",
-                    "operator" => "eq",
-                    "values" => ["Technology"],
-                    "inverse" => false
-                  },
-                  %{
-                    "type" => "attribute",
-                    "name" => "company_name",
-                    "operator" => "eq",
-                    "values" => ["Telex"],
-                    "inverse" => true
-                  },
-                  %{
-                    "type" => "attribute",
-                    "name" => "revenue",
-                    "operator" => "gt",
-                    "values" => [1_000_000_000],
-                    "inverse" => false
-                  },
-                  %{
-                    "type" => "attribute",
-                    "name" => "revenue",
-                    "operator" => "gt",
-                    "values" => [9_999_999_999],
-                    "inverse" => true
-                  }
-                ]
-              }
-            ]
-          }
-        ]
-      }
-
-      expected_query = %{
-        bool: %{
-          must: [
-            %{
-              bool: %{
-                must: %{
-                  bool: %{
-                    must: [
-                      %{exists: %{field: "startup"}}
-                    ]
-                  }
-                }
-              }
-            },
-            %{
-              bool: %{
-                must_not: %{
-                  bool: %{
-                    must: [
-                      %{exists: %{field: "funding"}}
-                    ]
-                  }
-                }
-              }
-            },
-            %{
-              bool: %{
-                must: %{
-                  bool: %{
-                    must: [
-                      %{terms: %{"department" => ["technology"]}}
-                    ]
-                  }
-                }
-              }
-            },
-            %{
-              bool: %{
-                must_not: %{
-                  bool: %{
-                    must: [
-                      %{terms: %{"company_name" => ["telex"]}}
-                    ]
-                  }
-                }
-              }
-            },
-            %{
-              bool: %{
-                should: [
-                  %{
-                    bool: %{
-                      must: %{
-                        bool: %{
-                          must: [%{exists: %{field: "startup"}}]
-                        }
-                      }
-                    }
-                  },
-                  %{
-                    bool: %{
-                      must_not: %{
-                        bool: %{
-                          must: [%{exists: %{field: "funding"}}]
-                        }
-                      }
-                    }
-                  },
-                  %{
-                    bool: %{
-                      must: %{
-                        bool: %{
-                          must: [
-                            %{terms: %{"department" => ["technology"]}}
-                          ]
-                        }
-                      }
-                    }
-                  },
-                  %{
-                    bool: %{
-                      must_not: %{
-                        bool: %{
-                          must: [
-                            %{terms: %{"company_name" => ["telex"]}}
-                          ]
-                        }
-                      }
-                    }
-                  },
-                  %{
-                    bool: %{
-                      must: [
-                        %{
-                          bool: %{
-                            must: %{
-                              bool: %{
-                                must: [%{exists: %{field: "startup"}}]
-                              }
-                            }
-                          }
-                        },
-                        %{
-                          bool: %{
-                            must_not: %{
-                              bool: %{
-                                must: [
-                                  %{exists: %{field: "funding"}}
-                                ]
-                              }
-                            }
-                          }
-                        },
-                        %{
-                          bool: %{
-                            must: %{
-                              bool: %{
-                                must: [
-                                  %{terms: %{"department" => ["technology"]}}
-                                ]
-                              }
-                            }
-                          }
-                        },
-                        %{
-                          bool: %{
-                            must_not: %{
-                              bool: %{
-                                must: [
-                                  %{terms: %{"company_name" => ["telex"]}}
-                                ]
-                              }
-                            }
-                          }
-                        },
-                        %{
-                          bool: %{
-                            must: %{
-                              bool: %{
-                                must: [
-                                  %{
-                                    range: %{
-                                      "revenue" => %{gt: 1_000_000_000}
-                                    }
-                                  }
-                                ]
-                              }
-                            }
-                          }
-                        },
-                        %{
-                          bool: %{
-                            must_not: %{
-                              bool: %{
-                                must: [
-                                  %{
-                                    range: %{
-                                      "revenue" => %{gt: 9_999_999_999}
-                                    }
-                                  }
-                                ]
-                              }
-                            }
-                          }
-                        }
-                      ]
-                    }
-                  }
-                ]
-              }
-            }
-          ]
-        }
-      }
-
-      assert ^expected_query = TestRuleParser.build(rule)
-    end
 
     test "returns es query for a rule with AND & OR both clauses" do
       rule = %{

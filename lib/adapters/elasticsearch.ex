@@ -1,263 +1,114 @@
 defmodule RuleEngine.Adapters.Elasticsearch do
-  def whitelisted_attributes, do: %{}
-  def predefined_rules, do: %{}
-  def whitelisted_fields, do: Map.keys(whitelisted_attributes())
+  @range_operator ["gt", "gte", "lt", "lte"]
+  @terms_operator ["eq", "in"]
+  @exists_operator "exists"
 
-  def build(rules, filter \\ %{}, config \\ %{})
+  def build({type, [rule | other_rules]}) do
+    {type, [do_build(rule) | build(other_rules)]}
+  end
 
-  def build(%{"and" => and_rules, "or" => or_rules}, filter, config) do
+  def build({type, rule}) when is_map(rule) do
+    {type, [build(rule)]}
+  end
+
+  def build([rule | other_rules]) do
+    [do_build(rule) | build(other_rules)]
+  end
+
+  def build(rule) when is_map(rule) do
+    do_build(rule)
+  end
+
+  def build([]), do: []
+
+  defp do_build(%{
+         name: name,
+         operator: @exists_operator
+       }) do
+    %{exists: %{field: name}}
+  end
+
+  defp do_build(%{
+         name: name,
+         operator: operator,
+         values: values
+       })
+       when operator in @terms_operator do
+    if is_list(values) do
+      %{terms: %{"#{name}": values}}
+    else
+      %{term: %{"#{name}": values}}
+    end
+
+  end
+
+  defp do_build(%{
+         name: name,
+         operator: operator,
+         values: [value | _]
+       })
+       when is_binary(operator) and operator in @range_operator do
+    %{range: %{"#{name}" => %{"#{operator}": value}}}
+  end
+
+  defp do_build(%{
+         name: name,
+         operator: operator,
+         values: values
+       })
+       when is_list(operator) do
+    result =
+      operator
+      |> Enum.with_index()
+      |> Enum.map(fn {operator, index} ->
+        {operator, Enum.at(values, index)}
+      end)
+      |> Enum.reject(fn {_, value} -> is_nil(value) end)
+      |> Enum.into(%{})
+
     %{
-      must: es_query(and_rules, config),
-      minimum_should_match: 1,
-      should: es_query(or_rules, config)
-    }
-    |> add_filter(filter)
-  end
-
-  def build(%{"and" => rules}, filter, config) do
-    %{must: es_query(rules, config)}
-    |> add_filter(filter)
-  end
-
-  def build(%{"or" => rules}, filter, config) do
-    %{minimum_should_match: 1, should: es_query(rules, config)}
-    |> add_filter(filter)
-  end
-
-  def build(%{} = query, filter, _config) do
-    query
-    |> add_filter(filter)
-  end
-
-  defp add_filter(query, filter) when filter == %{}, do: %{bool: query}
-
-  defp add_filter(query, %{filter: filter}) do
-    %{bool: Map.put(query, :filter, filter)}
-  end
-
-  defp add_filter(query, filter) when is_map(filter) do
-    case Map.to_list(filter) do
-      [{_field, [_ | _]}] ->
-        %{bool: Map.put(query, :filter, %{terms: filter})}
-
-      _ ->
-        %{bool: Map.put(query, :filter, %{term: filter})}
-    end
-  end
-
-  defp add_filter(query, _filter), do: %{bool: query}
-
-  defp es_query([], _), do: []
-
-  defp es_query([rule | other_rules], config) do
-    [es_query(rule, config) | es_query(other_rules, config)] |> List.flatten()
-  end
-
-  defp es_query(%{"and" => rules}, config) do
-    query = es_query(rules, config)
-
-    %{bool: %{must: query}}
-  end
-
-  defp es_query(%{"or" => rules}, config) do
-    query = es_query(rules, config)
-
-    %{bool: %{should: query}}
-  end
-
-  defp es_query(
-         %{
-           "name" => name,
-           "type" => "predefined"
-         },
-         config
-       ) do
-    rule = Map.get(config.predefined_rules, name, nil)
-
-    if rule do
-      es_query(rule, config)
-    else
-      []
-    end
-  end
-
-  defp es_query(
-         %{
-           "name" => name,
-           "type" => "attribute",
-           "operator" => "timestamp_before",
-           "values" => [no_of_days],
-           "inverse" => inverse
-         } = attributes,
-         _config
-       ) do
-    sign = %{true: -1, false: 1}
-
-    start_datetime =
-      Timex.shift(
-        # To be used only in tests
-        attributes["current_time"] || DateTime.utc_now(),
-        days: sign[inverse] * no_of_days
-      )
-      |> Timex.beginning_of_day()
-
-    start_unix_timestamp = start_datetime |> DateTime.to_unix()
-
-    end_unix_timestamp =
-      start_datetime
-      |> Timex.shift(days: 1)
-      |> DateTime.to_unix()
-
-    [
-      %{
-        range: %{
-          name => %{
-            gte: start_unix_timestamp,
-            lt: end_unix_timestamp
-          }
-        }
-      }
-    ]
-  end
-
-  defp es_query(
-         %{
-           "type" => "attribute",
-           "values" => _values,
-           "operator" => "in",
-           "inverse" => inverse
-         },
-         _config
-       ) do
-    conditions = [
-      %{exists: %{field: "___improbable_field_name___"}}
-    ]
-
-    do_query(inverse, conditions)
-  end
-
-  defp es_query(
-         %{
-           "type" => "attribute",
-           "name" => name,
-           "operator" => "exists",
-           "inverse" => inverse
-         },
-         config
-       ) do
-    if name in config.whitelisted_fields do
-      conditions = [
-        %{exists: %{field: name}}
-      ]
-
-      do_query(inverse, conditions)
-    else
-      []
-    end
-  end
-
-  defp es_query(
-         %{
-           "type" => "attribute",
-           "name" => name,
-           "operator" => "eq",
-           "values" => [value],
-           "inverse" => inverse
-         },
-         config
-       )
-       when is_boolean(value) do
-    if name in config.whitelisted_fields do
-      attribute_name = Map.get(config.whitelisted_attributes, name, name)
-
-      conditions = [
-        %{term: %{attribute_name => value}}
-      ]
-
-      do_query(inverse, conditions)
-    else
-      []
-    end
-  end
-
-  defp es_query(
-         %{
-           "type" => "attribute",
-           "name" => name,
-           "operator" => "eq",
-           "values" => values,
-           "inverse" => inverse
-         },
-         config
-       ) do
-    if name in config.whitelisted_fields do
-      attribute_name = Map.get(config.whitelisted_attributes, name, name)
-      downcased_values = values |> downcase_values()
-
-      conditions = [
-        %{terms: %{attribute_name => downcased_values}}
-      ]
-
-      do_query(inverse, conditions)
-    else
-      []
-    end
-  end
-
-  defp es_query(
-         %{
-           "type" => "attribute",
-           "name" => name,
-           "operator" => "gt",
-           "values" => [value | _],
-           "inverse" => inverse
-         },
-         config
-       ) do
-    if name in config.whitelisted_fields do
-      conditions = [
-        %{range: %{name => %{gt: value}}}
-      ]
-
-      do_query(inverse, conditions)
-    else
-      []
-    end
-  end
-
-  defp do_query(false, conditions) do
-    %{
-      bool: %{
-        must: %{
-          bool: %{
-            must: conditions
-          }
-        }
+      range: %{
+        "#{name}" => result
       }
     }
   end
 
-  defp do_query(true, conditions) do
-    %{
-      bool: %{
-        must_not: %{
-          bool: %{
-            must: conditions
-          }
-        }
-      }
-    }
+  defp do_build(data), do: Enum.map(data, &build/1)
+
+  def query(conditions) do
+    query =
+      Enum.map(conditions, fn {type, conditions} ->
+        conditions = if(is_nested?(conditions), do: do_nested_query(conditions), else: conditions)
+        do_query({type, conditions})
+      end)
+      |> Enum.into(%{})
+
+    %{bool: query}
   end
 
-  defp downcase_values(values) when is_list(values) do
-    values
-    |> Enum.map(&downcase_value/1)
+  defp do_query({:and, conditions}) do
+    {:must, conditions}
   end
 
-  defp downcase_values(_) do
-    []
+  defp do_query({:or, conditions}) do
+    {:should, conditions}
   end
 
-  def downcase_value(value) when is_binary(value), do: String.downcase(value)
-  def downcase_value(value), do: value
+  defp do_query({:not, conditions}) do
+    {:must_not, conditions}
+  end
+
+  defp do_query({:filter, conditions}) do
+    {:filter, conditions}
+  end
+
+  defp do_nested_query(conditions) do
+    nested_conditions = Enum.filter(conditions, &is_list/1)
+    nested_query = Enum.map(nested_conditions, &query/1)
+    Enum.filter(conditions, &is_map/1) ++ nested_query
+  end
+
+  defp is_nested?(conditions) do
+    Enum.any?(conditions, &is_list/1)
+  end
 end

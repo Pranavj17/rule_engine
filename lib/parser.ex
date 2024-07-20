@@ -4,18 +4,15 @@ defmodule RuleEngine.Parser do
 
     quote do
       @behaviour RuleEngine.Adapters.Behaviour
+      @module unquote(adapter)
       defdelegate whitelisted_attributes, to: unquote(adapter)
       defdelegate predefined_rules, to: unquote(adapter)
       def whitelisted_fields, do: Map.keys(whitelisted_attributes())
 
-      def build(rules, filter \\ %{}) do
-        config = %{
-          whitelisted_attributes: whitelisted_attributes(),
-          predefined_rules: predefined_rules(),
-          whitelisted_fields: whitelisted_fields()
-        }
-
-        unquote(adapter).build(rules, filter, config)
+      def build(rules) do
+        Enum.map(rules, &@module.build/1)
+        |> @module.query()
+        |> IO.inspect()
       end
 
       defoverridable RuleEngine.Adapters.Behaviour
