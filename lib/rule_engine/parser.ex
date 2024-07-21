@@ -5,17 +5,28 @@ defmodule RuleEngine.Parser do
     quote do
       @behaviour RuleEngine.Adapters.Behaviour
       @module unquote(adapter)
+      @callbacks [:predefined_rules, :whitelisted_attributes]
 
       alias RuleEngine.Agent, as: RE_Agent
       def predefined_rules(), do: %{}
+      def whitelisted_attributes(), do: %{}
 
       def build(rules) do
-        if map_size(predefined_rules()) > 0 do
-          RE_Agent.update_state(predefined_rules())
-        end
+        :ok = update_callbacks_state()
 
         Enum.map(rules, &@module.build/1)
         |> @module.query()
+      end
+
+      defp update_callbacks_state() do
+        @callbacks
+        |> Enum.reduce(%{}, fn func_name, acc ->
+          value = apply(__MODULE__, func_name, [])
+          Map.merge(acc, %{"#{func_name}": value})
+        end)
+        |> RE_Agent.update_state()
+
+        :ok
       end
 
       defoverridable RuleEngine.Adapters.Behaviour

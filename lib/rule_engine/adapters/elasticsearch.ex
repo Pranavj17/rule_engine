@@ -26,8 +26,8 @@ defmodule RuleEngine.Adapters.Elasticsearch do
          name: name,
          type: "predefined"
        }) do
-    predefined_rules = RE_Agent.get_state()
-    rule = Map.get(predefined_rules, name, nil)
+    state = RE_Agent.get_state()
+    rule = get_in(state, [:predefined_rules, name])
 
     if rule do
       Enum.map(rule, &build/1)
