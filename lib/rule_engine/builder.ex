@@ -45,7 +45,7 @@ defmodule RuleEngine.Builder do
       end
 
       def left <= right do
-        unit_rule(left, "gt_eq", right, true)
+        unit_rule(left, "gte", right, true)
       end
 
       def contains(name, value) do

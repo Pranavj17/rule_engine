@@ -39,7 +39,6 @@ defmodule RuleEngine.Adapters.Elasticsearch do
     else
       %{term: %{"#{name}": values}}
     end
-
   end
 
   defp do_build(%{
@@ -100,6 +99,10 @@ defmodule RuleEngine.Adapters.Elasticsearch do
 
   defp do_query({:filter, conditions}) do
     {:filter, conditions}
+  end
+
+  defp do_query({type, conditions}) do
+    {type, conditions}
   end
 
   defp do_nested_query(conditions) do

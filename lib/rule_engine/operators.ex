@@ -1,5 +1,5 @@
 defmodule RuleEngine.Operators do
-  import Constant
+  import RuleEngine.Constant
 
   Enum.each(
     [
