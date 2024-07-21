@@ -2,6 +2,7 @@ defmodule RuleEngine.Adapters.Elasticsearch do
   @range_operator ["gt", "gte", "lt", "lte"]
   @terms_operator ["eq", "in"]
   @exists_operator "exists"
+  alias RuleEngine.Agent, as: RE_Agent
 
   def build({type, [rule | other_rules]}) do
     {type, [do_build(rule) | build(other_rules)]}
@@ -20,6 +21,20 @@ defmodule RuleEngine.Adapters.Elasticsearch do
   end
 
   def build([]), do: []
+
+  defp do_build(%{
+         name: name,
+         type: "predefined"
+       }) do
+    predefined_rules = RE_Agent.get_state()
+    rule = Map.get(predefined_rules, name, nil)
+
+    if rule do
+      Enum.map(rule, &build/1)
+    else
+      nil
+    end
+  end
 
   defp do_build(%{
          name: name,
@@ -77,6 +92,7 @@ defmodule RuleEngine.Adapters.Elasticsearch do
   def query(conditions) do
     query =
       Enum.map(conditions, fn {type, conditions} ->
+        conditions = Enum.reject(conditions, &is_nil/1)
         conditions = if(is_nested?(conditions), do: do_nested_query(conditions), else: conditions)
         do_query({type, conditions})
       end)

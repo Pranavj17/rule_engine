@@ -28,6 +28,31 @@ defmodule RuleEngine.RuleParserTest do
     end
   end
 
+  defmodule TestNestedRuleParser do
+    use RuleEngine.Parser,
+      adapter: RuleEngine.Adapters.Elasticsearch
+
+    use RuleEngine.Builder
+
+    def predefined_rules do
+      %{
+        "recommended_rules" => %{
+          and: [
+            1 in [1, 2],
+            "company_name" == "Telex"
+          ],
+          or: [
+            %{
+              name: "department",
+              operator: "eq",
+              values: ["Technology"]
+            }
+          ]
+        }
+      }
+    end
+  end
+
   describe "build/1" do
     test "basic rules" do
       rule = %{
@@ -314,6 +339,93 @@ defmodule RuleEngine.RuleParserTest do
       }
 
       assert ^expected_query = TestRuleParser.build(rule)
+    end
+
+    test "supports predefined rules" do
+      rule = %{
+        and: [
+          %{
+            name: "test",
+            operator: "eq",
+            values: "rules"
+          },
+          %{
+            name: "recommended",
+            type: "predefined"
+          }
+        ]
+      }
+
+      expected_query = %{
+        bool: %{
+          must: [
+            %{term: %{test: "rules"}},
+            %{
+              bool: %{
+                must: [
+                  %{terms: %{company_name: ["Telex"]}},
+                  %{range: %{"revenue" => %{gt: 1_000_000_000}}}
+                ]
+              }
+            }
+          ]
+        }
+      }
+
+      assert ^expected_query = TestRuleParser.build(rule)
+    end
+
+    test "supports nested predefined rules with/without match name" do
+      rule = %{
+        and: [
+          %{
+            name: "test",
+            operator: "eq",
+            values: "rules"
+          },
+          %{
+            name: "not_matched",
+            type: "predefined"
+          }
+        ]
+      }
+
+      expected_query = %{bool: %{must: [%{term: %{test: "rules"}}]}}
+
+      assert ^expected_query = TestNestedRuleParser.build(rule)
+
+      rule = %{
+        and: [
+          %{
+            name: "test",
+            operator: "eq",
+            values: "rules"
+          },
+          %{
+            name: "recommended_rules",
+            type: "predefined"
+          }
+        ]
+      }
+
+      expected_query = %{
+        bool: %{
+          must: [
+            %{term: %{test: "rules"}},
+            %{
+              bool: %{
+                should: [%{terms: %{department: ["Technology"]}}],
+                must: [
+                  %{terms: %{"1": [1, 2]}},
+                  %{terms: %{company_name: ["Telex"]}}
+                ]
+              }
+            }
+          ]
+        }
+      }
+
+      assert ^expected_query = TestNestedRuleParser.build(rule)
     end
   end
 end
