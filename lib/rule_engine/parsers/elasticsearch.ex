@@ -31,7 +31,6 @@ defmodule RuleEngine.Parsers.Elasticsearch do
     %{terms: %{"#{name}": values}}
   end
 
-  @spec term(any(), any()) :: %{terms: %{optional(atom()) => any()}}
   def term(name, values) do
     %{term: %{"#{name}": values}}
   end
@@ -40,7 +39,6 @@ defmodule RuleEngine.Parsers.Elasticsearch do
     %{filter: query}
   end
 
-  @spec query({any(), any()}) :: {any(), any()}
   def query({:and, conditions}) do
     {:must, conditions}
   end
