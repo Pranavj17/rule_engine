@@ -86,7 +86,7 @@ defmodule RuleEngine.Builder do
       def rule(:or, rule), do: %{or: [rule]}
       def rule(:not, rule) when is_list(rule), do: %{not: rule}
       def rule(:not, rule), do: %{not: [rule]}
-      def rule(:filter, rule), do: %{filter: [rule]}
+      def rule(:filter, rule) when is_list(rule), do: %{filter: [rule]}
       def rule(:filter, rule), do: %{filter: [rule]}
     end
   end

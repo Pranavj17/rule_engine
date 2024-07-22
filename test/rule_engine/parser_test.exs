@@ -4,7 +4,7 @@ defmodule RuleEngine.RuleParserTest do
 
   defmodule TestRuleParser do
     use RuleEngine.Parser,
-      adapter: RuleEngine.Adapters.Elasticsearch
+      parser: RuleEngine.Parsers.Elasticsearch
 
     use RuleEngine.Builder
 
@@ -30,7 +30,7 @@ defmodule RuleEngine.RuleParserTest do
 
   defmodule TestNestedRuleParser do
     use RuleEngine.Parser,
-      adapter: RuleEngine.Adapters.Elasticsearch
+      parser: RuleEngine.Parsers.Elasticsearch
 
     use RuleEngine.Builder
 
