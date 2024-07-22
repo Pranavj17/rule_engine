@@ -1,5 +1,5 @@
 defmodule RuleEngine.Parsers.Elasticsearch do
-  @callback reconstruct(term) :: Map.t()
+  @callback reconstruct(map()) :: map()
 
   def behaviour, do: RuleEngine.Behaviours.Elasticsearch
 

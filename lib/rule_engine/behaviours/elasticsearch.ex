@@ -1,5 +1,5 @@
 defmodule RuleEngine.Behaviours.Elasticsearch do
-  @callback query({term, term}) :: Tuple.t()
+  @callback query({atom(), map()}) :: tuple()
 
   def query({:and, conditions}), do: RuleEngine.Parsers.Elasticsearch.must(conditions)
   def query({:or, conditions}), do: RuleEngine.Parsers.Elasticsearch.should(conditions)
