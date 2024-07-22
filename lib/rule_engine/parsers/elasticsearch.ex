@@ -1,5 +1,8 @@
 defmodule RuleEngine.Parsers.Elasticsearch do
-  @behaviour RuleEngine.Behaviours.Elasticsearch
+  @callback reconstruct(term) :: Map.t()
+
+  def behaviour, do: RuleEngine.Behaviours.Elasticsearch
+
   def reconstruct(query), do: %{bool: query}
 
   def range(name, operator, values) when is_list(operator) do
@@ -39,23 +42,19 @@ defmodule RuleEngine.Parsers.Elasticsearch do
     %{filter: query}
   end
 
-  def query({:and, conditions}) do
+  def must(conditions) do
     {:must, conditions}
   end
 
-  def query({:or, conditions}) do
+  def should(conditions) do
     {:should, conditions}
   end
 
-  def query({:not, conditions}) do
+  def must_not(conditions) do
     {:must_not, conditions}
   end
 
-  def query({:filter, conditions}) do
-    {:filter, conditions}
-  end
-
-  def query({type, conditions}) do
+  def no_match({type, conditions}) do
     {type, conditions}
   end
 end

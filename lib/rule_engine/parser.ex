@@ -5,6 +5,8 @@ defmodule RuleEngine.Parser do
     quote do
       @behaviour RuleEngine.Behaviours.Parser
       @module unquote(parser)
+      @parser_behaviour @module.behaviour
+      @behaviour @parser_behaviour
 
       @range_operator ["gt", "gte", "lt", "lte"]
       @terms_operator ["eq", "in"]
@@ -12,6 +14,8 @@ defmodule RuleEngine.Parser do
 
       def predefined_rules(), do: %{}
       def whitelisted_attributes(), do: %{}
+
+      defdelegate do_query(conditions), to: @parser_behaviour, as: :query
 
       defp do_build({type, [rule | other_rules]}) do
         {type, [do_build_query(rule) | do_build(other_rules)]}
@@ -49,11 +53,6 @@ defmodule RuleEngine.Parser do
           |> Enum.into(%{})
           |> @module.reconstruct
       end
-
-      defp do_query({:and, conditions}), do: @module.query({:must, conditions})
-      defp do_query({:or, conditions}), do: @module.query({:or, conditions})
-      defp do_query({:not, conditions}), do: @module.query({:not, conditions})
-      defp do_query({:filter, conditions}), do: @module.query({:filter, conditions})
 
       defp do_nested_query(conditions) do
         nested_conditions = Enum.filter(conditions, &is_list/1)
