@@ -41,17 +41,16 @@ defmodule RuleEngine.Parser do
       end
 
       def query(conditions) do
-        query =
-          Enum.map(conditions, fn {type, conditions} ->
-            conditions = Enum.reject(conditions, &is_nil/1)
+        Enum.map(conditions, fn {type, conditions} ->
+          conditions = Enum.reject(conditions, &is_nil/1)
 
-            conditions =
-              if(is_nested?(conditions), do: do_nested_query(conditions), else: conditions)
+          conditions =
+            if(is_nested?(conditions), do: do_nested_query(conditions), else: conditions)
 
-            do_query({type, conditions})
-          end)
-          |> Enum.into(%{})
-          |> @module.reconstruct
+          do_query({type, conditions})
+        end)
+        |> Enum.into(%{})
+        |> @module.reconstruct
       end
 
       defp do_nested_query(conditions) do
