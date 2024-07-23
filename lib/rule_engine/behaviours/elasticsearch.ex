@@ -1,4 +1,7 @@
 defmodule RuleEngine.Behaviours.Elasticsearch do
+  @moduledoc """
+  Module act as a translator to elasticsearch query functions
+  """
   @callback query({atom(), map()}) :: tuple()
   @callback do_query({atom(), map()}) :: tuple()
 

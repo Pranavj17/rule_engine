@@ -1,4 +1,5 @@
 defmodule RuleEngine.Operators do
+  @moduledoc false
   import RuleEngine.Constant
 
   Enum.each(

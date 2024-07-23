@@ -1,4 +1,7 @@
 defmodule RuleEngine.Builder do
+  @moduledoc """
+  Module is used to build relavent rules specified
+  """
   defmacro __using__(_opts) do
     quote do
       import RuleEngine.Builder

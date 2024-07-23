@@ -1,4 +1,7 @@
 defmodule RuleEngine.Parsers.Elasticsearch do
+  @moduledoc """
+  Module has set of function which return elastic search queries
+  """
   @callback reconstruct(map()) :: map()
 
   def behaviour, do: RuleEngine.Behaviours.Elasticsearch

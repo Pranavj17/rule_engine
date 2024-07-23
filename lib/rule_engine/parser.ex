@@ -1,4 +1,7 @@
 defmodule RuleEngine.Parser do
+  @moduledoc """
+  Module to parser the rule given and translater the rules respective to the parser specified
+  """
   defmacro __using__(opts) do
     parser = Keyword.get(opts, :parser)
 
@@ -59,7 +62,7 @@ defmodule RuleEngine.Parser do
         Enum.filter(conditions, &is_map/1) ++ nested_query
       end
 
-      defp is_nested?(conditions) do
+      defp nested?(conditions) do
         Enum.any?(conditions, &is_list/1)
       end
 
