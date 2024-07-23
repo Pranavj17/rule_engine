@@ -1,6 +1,10 @@
 # RuleEngine
 
-**TODO: Add description**
+```Engine for parsing rules
+  Supported rule: [
+      Elastic Search
+    ]
+```
 
 ## Installation
 
