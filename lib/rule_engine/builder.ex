@@ -1,4 +1,7 @@
 defmodule RuleEngine.Builder do
+  @moduledoc """
+  Module is used to build relavent rules specified
+  """
   defmacro __using__(_opts) do
     quote do
       import RuleEngine.Builder
@@ -33,7 +36,7 @@ defmodule RuleEngine.Builder do
       end
 
       def left < right do
-        unit_rule(left, "gt", right, true)
+        unit_rule(left, "lt", right, true)
       end
 
       def left in right do
@@ -41,50 +44,29 @@ defmodule RuleEngine.Builder do
       end
 
       def left >= right do
-        unit_rule(left, "gt_eq", right)
+        unit_rule(left, "lte", right)
       end
 
       def left <= right do
-        unit_rule(left, "gt_eq", right, true)
+        unit_rule(left, "gte", right, true)
       end
 
       def contains(name, value) do
         %{
-          "type" => "attribute",
-          "name" => name,
-          "operator" => "contains",
-          "values" => [value],
-          "inverse" => false
+          name: name,
+          operator: "contains",
+          values: [value]
         }
       end
 
       def unit_rule(left, op, right \\ nil, inverse \\ false)
 
-      def unit_rule("segment", "in", right, inverse) do
-        %{
-          "operator" => "in",
-          "type" => "segment",
-          "values" => List.wrap(right),
-          "inverse" => inverse
-        }
-      end
-
       def unit_rule(left, op, right, inverse) do
         %{
-          "name" => left,
-          "type" => "attribute",
-          "operator" => op,
-          "values" => List.wrap(right),
-          "inverse" => inverse
+          name: left,
+          operator: op,
+          values: List.wrap(right)
         }
-      end
-
-      def not (%{"inverse" => inverse} = rule) do
-        Map.put(rule, "inverse", !inverse)
-      end
-
-      def not (%{} = rule) do
-        Map.put_new(rule, "inverse", true)
       end
 
       def left and right when is_list(left) do
@@ -101,12 +83,14 @@ defmodule RuleEngine.Builder do
         rule(condition, block)
       end
 
-      def rule(:and, rule) when is_list(rule), do: %{"and" => rule}
-      def rule(:and, rule), do: %{"and" => [rule]}
-      def rule(:or, rule) when is_list(rule), do: %{"or" => rule}
-      def rule(:or, rule), do: %{"or" => [rule]}
-      def rule(:not, rule) when is_list(rule), do: %{"not" => rule}
-      def rule(:not, rule), do: %{"not" => [rule]}
+      def rule(:and, rule) when is_list(rule), do: %{and: rule}
+      def rule(:and, rule), do: %{and: [rule]}
+      def rule(:or, rule) when is_list(rule), do: %{or: rule}
+      def rule(:or, rule), do: %{or: [rule]}
+      def rule(:not, rule) when is_list(rule), do: %{not: rule}
+      def rule(:not, rule), do: %{not: [rule]}
+      def rule(:filter, rule) when is_list(rule), do: %{filter: [rule]}
+      def rule(:filter, rule), do: %{filter: [rule]}
     end
   end
 end
