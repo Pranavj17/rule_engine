@@ -67,7 +67,7 @@ defmodule RuleEngine.Parser do
              name: name,
              operator: @exists_operator
            }) do
-        @module.exists(name)
+        @parser_behaviour.do_query({:exists, %{name: name}})
       end
 
       defp do_build_query(%{
@@ -76,10 +76,12 @@ defmodule RuleEngine.Parser do
              values: values
            })
            when operator in @terms_operator do
+        map = %{name: name, values: values}
+
         if is_list(values) do
-          @module.terms(name, values)
+          @parser_behaviour.do_query({:terms, map})
         else
-          @module.term(name, values)
+          @parser_behaviour.do_query({:term, map})
         end
       end
 
@@ -102,7 +104,13 @@ defmodule RuleEngine.Parser do
              values: [value | _]
            })
            when is_binary(operator) and operator in @range_operator do
-        @module.range(name, operator, value)
+        map = %{
+          name: name,
+          operator: operator,
+          values: value
+        }
+
+        @parser_behaviour.do_query({:range, map})
       end
 
       defp do_build_query(%{
@@ -111,7 +119,13 @@ defmodule RuleEngine.Parser do
              values: values
            })
            when is_list(operator) do
-        @module.range(name, operator, values)
+        map = %{
+          name: name,
+          operator: operator,
+          values: values
+        }
+
+        @parser_behaviour.do_query({:range, map})
       end
 
       defp do_build_query(data), do: Enum.map(data, &do_build/1)

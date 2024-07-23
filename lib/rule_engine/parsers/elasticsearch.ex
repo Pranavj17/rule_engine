@@ -5,7 +5,12 @@ defmodule RuleEngine.Parsers.Elasticsearch do
 
   def reconstruct(query), do: %{bool: query}
 
-  def range(name, operator, values) when is_list(operator) do
+  def range(%{
+        name: name,
+        operator: operator,
+        values: values
+      })
+      when is_list(operator) do
     result =
       operator
       |> Enum.with_index()
@@ -22,24 +27,24 @@ defmodule RuleEngine.Parsers.Elasticsearch do
     }
   end
 
-  def range(name, operator, value) do
+  def range(%{
+        name: name,
+        operator: operator,
+        values: value
+      }) do
     %{range: %{"#{name}" => %{"#{operator}": value}}}
   end
 
-  def exists(name) do
+  def exists(%{name: name}) do
     %{exists: %{field: name}}
   end
 
-  def terms(name, values) do
+  def terms(%{name: name, values: values}) do
     %{terms: %{"#{name}": values}}
   end
 
-  def term(name, values) do
+  def term(%{name: name, values: values}) do
     %{term: %{"#{name}": values}}
-  end
-
-  def filter(query) do
-    %{filter: query}
   end
 
   def must(conditions) do
