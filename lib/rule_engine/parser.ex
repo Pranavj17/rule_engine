@@ -48,7 +48,7 @@ defmodule RuleEngine.Parser do
           conditions = Enum.reject(conditions, &is_nil/1)
 
           conditions =
-            if(is_nested?(conditions), do: do_nested_query(conditions), else: conditions)
+            if(nested?(conditions), do: do_nested_query(conditions), else: conditions)
 
           do_query({type, conditions})
         end)
