@@ -1,7 +1,8 @@
 # RuleEngine
 
-```Engine for parsing rules
-  Supported rule: [
+```
+  Engine for parsing rules
+  Supported parser: [
       Elastic Search
     ]
 ```
