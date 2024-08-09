@@ -8,7 +8,7 @@ defmodule RuleEngine.Parser do
     quote do
       @behaviour RuleEngine.Behaviours.Parser
       @module unquote(parser)
-      @parser_behaviour @module.behaviour
+      @parser_behaviour @module.behaviour()
       @behaviour @parser_behaviour
 
       @range_operator ["gt", "gte", "lt", "lte"]
